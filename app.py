@@ -81,11 +81,11 @@ def datos():
 
     # Filtrado de datos según el formulario
     if municipio:
-        df = df[df['Municipio'] == municipio]
+        datos = datos[datos['Municipio'] == municipio]
     if unidad:
-        df = df[df['Unidad'] == unidad]
+        datos = datos[datos['Unidad'] == unidad]
     if mes:
-        df = df[df['Mes'] == mes]
+        datos = datos[datos['Mes'] == mes]
     
     # Ordenar el DataFrame por la columna 'Fecha' de manera descendente
     datos = datos.sort_values(by='Fecha', ascending=False)
@@ -95,14 +95,14 @@ def datos():
 
     return render_template('datos.html', datos=datos.to_dict(orient='records'),
                            municipios_unicos=municipios_unicos, 
-                           unidades=unidades_unicas, 
-                           meses=meses_unicos,
-                           clue=clues_unicos,
-                           juris=jurisdicciones_unicas,
-                           tipo=tipologia_unica,
-                           turn=turnos_unicos,
-                           trim=trimestre_unico,
-                           anios=anio_unico)
+                           unidades_unicas=unidades_unicas, 
+                           meses_unicos=meses_unicos,
+                           clues_unicos=clues_unicos,
+                           jurisdicciones_unicas=jurisdicciones_unicas,
+                           tipologia_unica=tipologia_unica,
+                           turnos_unicos=turnos_unicos,
+                           trimestre_unico=trimestre_unico,
+                           anio_unicos=anio_unico)
 
 
     #if request.method == 'POST':
