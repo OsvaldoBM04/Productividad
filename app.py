@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, jsonify
 import pandas as pd
 import os
 
@@ -18,6 +18,39 @@ def cargar_datos():
         print(f"Error al cargar datos: {e}")
         return pd.DataFrame()  # Devuelve un DataFrame vacío en caso de error
     
+def calcular_productividad_periodo(datos, meses):
+    # Ordenar por la fecha para que las agrupaciones sean cronológicas
+    datos = datos.sort_values(by='Fecha')
+
+    # Definir frecuencia de agrupación según el periodo de meses
+    if meses == 2:
+        freq = '2M'  # Bimestral
+    elif meses == 6:
+        freq = '6M'  # Semestral
+    else:  # Por defecto, si no se especifica un periodo válido, no se agrupa
+      # Productividad sin agrupación (ningún periodo seleccionado)
+        datos['Productividad'] = datos['Consultas de unidad'] / datos['JornadasxUnidad']
+
+    if not freq:
+        # Si no se especifica un periodo válido, devolver datos sin cambios
+        datos['Productividad'] = datos['Consultas de unidad'] / datos['JornadasxUnidad']
+        return datos
+
+    # Agrupar por 'Clues', 'Unidad' y periodos de la columna 'Fecha'
+    datos_agrupados = datos.groupby(
+        ['Clues', 'Unidad', pd.Grouper(key='Fecha', freq=freq)]
+    ).agg({
+        'Consultas de unidad': 'sum',
+        'JornadasxUnidad': 'sum'
+    }).reset_index()
+
+    # Cálculo de productividad
+    datos_agrupados['Productividad'] = datos_agrupados['Consultas de unidad'] / datos_agrupados['JornadasxUnidad']
+    # Ordenar los resultados por fecha de forma descendente
+    datos_agrupados = datos_agrupados.sort_values(by='Fecha', ascending=False)
+    return datos_agrupados
+
+
 
 @app.route('/')
 def index():
@@ -38,6 +71,8 @@ def register():
 @app.route('/datos', methods=['GET', 'POST'])
 def datos():
     datos = cargar_datos()  # Cargar los datos de Excel
+        # Ordenar el DataFrame por la columna 'Fecha' de manera descendente
+    datos = datos.sort_values(by='Fecha', ascending=False) 
 
      # Obtener valores únicos de las columnas para los filtros
     municipios_unicos = datos['Municipio'].unique().tolist()  # Obtener municipios únicos
@@ -64,20 +99,8 @@ def datos():
     turno = request.form.get('turno') if request.method == 'POST' else None
     trimestre = request.form.get('trimestre') if request.method == 'POST' else None
     anio = request.form.get('anio') if request.method == 'POST' else None
-
-
-    # Filtros
-#    if request.method == 'POST':
-#        municipio = request.form.get('municipio')
-#        unidad = request.form.get('unidad')
-#        mes = request.form.get('mes')
-#        clues=request.form.get('clues')
-#        jurisdiccion=request.form.get('jurisdiccion')
-#        tipologia=request.form.get('tipologia')
-#        turno=request.form.get('turno')
-#        trimestre=request.form.get('trimestre')
-#        anio=request.form.get('anio')
-                 
+    periodo = request.form.get('periodo') if request.method == 'POST' else None
+        
 
     # Filtrado de datos según el formulario
     if municipio:
@@ -87,9 +110,17 @@ def datos():
     if mes:
         datos = datos[datos['Mes'] == mes]
     
-    # Ordenar el DataFrame por la columna 'Fecha' de manera descendente
-    datos = datos.sort_values(by='Fecha', ascending=False)
-    datos['Productividad']=datos['Consultas de unidad']/datos['JornadasxUnidad']
+       # Calcular la productividad en función del periodo seleccionado
+    if periodo == "2":  # Agrupación bimestral
+        datos = calcular_productividad_periodo(datos, meses=2)
+    elif periodo == "6":  # Agrupación semestral
+        datos = calcular_productividad_periodo(datos, meses=6)
+    else:
+        # Productividad sin agrupación (ningún periodo seleccionado)
+        datos['Productividad'] = datos['Consultas de unidad'] / datos['JornadasxUnidad']
+
+
+    
 #    datos['Productividad']=datos['Productividad'].astype(float)  # Convertir la columna 'Productividad' a tipo float
 #    datos['Año' ] = datos['Fecha'].dt.year  # Extraer el año de la columna 'Fecha' y crear una nueva columna 'Año'
 
@@ -107,8 +138,8 @@ def datos():
 
     #if request.method == 'POST':
 
-    lista_datos = datos.to_dict(orient='records')  # Convertir a lista de diccionarios
-    return render_template('datos.html', datos=lista_datos)
+ #   lista_datos = datos.to_dict(orient='records')  # Convertir a lista de diccionarios
+ #   return render_template('datos.html', datos=lista_datos)
 
 
 if __name__ == '__main__':
